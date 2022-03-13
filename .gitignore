@@ -1,8 +1,6 @@
 /build
 /eng.traineddata
 /node_modules
-/src
-/tsconfig.json
 /VerificationLearningPic
 Example_PageScreenShot.png
 Example_ElementScreenShot.png
