@@ -1,0 +1,23 @@
+{
+  "name": "puppeteer-browser",
+  "version": "1.0.0",
+  "description": "",
+  "main": "index.js",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1",
+    "start": "node ./dist/index.js"
+  },
+  "author": "",
+  "license": "ISC",
+  "dependencies": {
+    "@types/gm": "^1.18.11",
+    "@types/node": "^17.0.21",
+    "@types/puppeteer": "^5.4.5",
+    "gm": "^1.23.1",
+    "node-tesseract-ocr": "^2.2.1",
+    "opencv4nodejs": "^5.6.0",
+    "puppeteer": "^13.5.1",
+    "puppeteer-core": "^13.5.1",
+    "tesseract.js": "^2.1.5"
+  }
+}
