@@ -1,7 +1,7 @@
 import { chrome } from './browser';
 import { Report } from './CreateReport';
 import fs from 'fs';
-export async function Example(): Promise<void> {
+export async function Example(): Promise<Buffer> {
     let StartHref: chrome.Href = {
         SchemeName: "https",
         Host: "afrc.mnd.gov.tw",
@@ -41,10 +41,11 @@ export async function Example(): Promise<void> {
         headless: true,
         ProxyInfo: Proxy,
     }
-    let data = await chrome.browser.PressureTest(exampleScript, exampleConfig, 50);
+    let data = await chrome.browser.PressureTest(exampleScript, exampleConfig, 5);
     let report_temp = new Report.Excel(data);
-    let t = await report_temp.GetExcelBuffer();
-    fs.writeFileSync("./test.xlsx", t);
+    return report_temp.GetExcelBuffer();
+    // let t = await report_temp.GetExcelBuffer();
+    // fs.writeFileSync("./test.xlsx", t);
     // let browser: chrome.browser = new chrome.browser(exampleScript, exampleConfig);
     // await browser.Start();
 }

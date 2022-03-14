@@ -8,14 +8,10 @@ var __awaiter = (this && this.__awaiter) || function (thisArg, _arguments, P, ge
         step((generator = generator.apply(thisArg, _arguments || [])).next());
     });
 };
-var __importDefault = (this && this.__importDefault) || function (mod) {
-    return (mod && mod.__esModule) ? mod : { "default": mod };
-};
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.Example = void 0;
 const browser_1 = require("./browser");
 const CreateReport_1 = require("./CreateReport");
-const fs_1 = __importDefault(require("fs"));
 function Example() {
     return __awaiter(this, void 0, void 0, function* () {
         let StartHref = {
@@ -54,10 +50,11 @@ function Example() {
             headless: true,
             ProxyInfo: Proxy,
         };
-        let data = yield browser_1.chrome.browser.PressureTest(exampleScript, exampleConfig, 50);
+        let data = yield browser_1.chrome.browser.PressureTest(exampleScript, exampleConfig, 5);
         let report_temp = new CreateReport_1.Report.Excel(data);
-        let t = yield report_temp.GetExcelBuffer();
-        fs_1.default.writeFileSync("./test.xlsx", t);
+        return report_temp.GetExcelBuffer();
+        // let t = await report_temp.GetExcelBuffer();
+        // fs.writeFileSync("./test.xlsx", t);
         // let browser: chrome.browser = new chrome.browser(exampleScript, exampleConfig);
         // await browser.Start();
     });
