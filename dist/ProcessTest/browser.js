@@ -29,14 +29,16 @@ var chrome;
             this.Pages = [];
             this.ValueParamters = [];
             this._ReactionTime = 0;
+            this.StartTime = new Date().toISOString();
+            this._EndTime = new Date().toISOString();
             this.Script = Script;
             this.Config = Config;
         }
-        get Browser() {
-            return this._BrowserErr || null;
-        }
         get ReactionTime() {
             return this._ReactionTime;
+        }
+        get EndTime() {
+            return this._EndTime;
         }
         launch() {
             var _a, _b;
@@ -54,13 +56,6 @@ var chrome;
                 if (!this._Browser)
                     throw new TypeError("Please launch browser!");
                 let page = (yield ((_a = this._Browser) === null || _a === void 0 ? void 0 : _a.newPage())) || (yield (yield puppeteer_1.default.launch()).newPage());
-                page.setDefaultTimeout(10);
-                page.on('error', (err) => {
-                    var _a;
-                    console.log("test");
-                    this._BrowserErr = err;
-                    (_a = this._Browser) === null || _a === void 0 ? void 0 : _a.close();
-                });
                 yield page.deleteCookie();
                 if (this.Config.ProxyInfo)
                     yield page.authenticate(this.Config.ProxyInfo);
@@ -74,7 +69,9 @@ var chrome;
                 let StartWaitTime = Operation.StartWaitTime || 0;
                 let EndWaitTime = Operation.EndWaitTime || 0;
                 yield ((_a = this.Pages[this.Pages.length - 1]) === null || _a === void 0 ? void 0 : _a.waitForTimeout(StartWaitTime));
+                this._ReactionTime -= Date.now();
                 yield ((_b = this.Pages[this.Pages.length - 1]) === null || _b === void 0 ? void 0 : _b.waitForSelector(Operation.ElementSelector));
+                this._ReactionTime += Date.now();
                 switch (Operation.Event) {
                     case "Click":
                         yield this.Pages[this.Pages.length - 1].click(Operation.ElementSelector);
@@ -117,7 +114,9 @@ var chrome;
                     case "Goto":
                         if (!Operation.GotoUrl)
                             throw new TypeError("Can't find GotoUrl.");
+                        this._ReactionTime -= Date.now();
                         yield this.Pages[this.Pages.length - 1].goto(Operation.GotoUrl);
+                        this._ReactionTime += Date.now();
                         break;
                     case "UpdateValueParamter":
                         if (!Operation.UpdateValueParamter)
@@ -217,27 +216,41 @@ var chrome;
         }
         static PressureTest(Script, Config, TotalCount) {
             return __awaiter(this, void 0, void 0, function* () {
-                let vpns = yield this.GetVpnAddress();
-                for (let i = 0; i < Math.floor(TotalCount); i++) {
-                    let vpn = vpns[i % vpns.length];
-                    Config.ProxyInfo = {
-                        VpnServer: vpn.IPAddress,
-                        username: "vpn",
-                        password: "vpn"
-                    };
-                    let s = {
-                        StartHref: Script.StartHref,
-                        Operations: []
-                    };
-                    if (Script.ScreenShot)
-                        s.ScreenShot = Script.ScreenShot;
-                    Script.Operations.forEach(i => {
-                        s.Operations.push(i);
+                return new Promise((reslove, reject) => __awaiter(this, void 0, void 0, function* () {
+                    let vpns = yield this.GetVpnAddress();
+                    let data = [];
+                    for (let i = 0; i < Math.floor(TotalCount); i++) {
+                        let vpn = vpns[i % vpns.length];
+                        Config.ProxyInfo = {
+                            VpnServer: vpn.IPAddress,
+                            username: "vpn",
+                            password: "vpn"
+                        };
+                        let s = {
+                            StartHref: Script.StartHref,
+                            Operations: []
+                        };
+                        if (Script.ScreenShot)
+                            s.ScreenShot = Script.ScreenShot;
+                        Script.Operations.forEach(i => {
+                            s.Operations.push(i);
+                        });
+                        let c = Object.assign({}, Config);
+                        let temp = new browser(s, c);
+                        data.push(temp.Start());
+                    }
+                    Promise.all(data).then((d) => {
+                        let result = [];
+                        d.forEach(i => {
+                            result.push({
+                                StartTime: i.StartTime,
+                                ReactionTime: i.ReactionTime,
+                                EndTime: i.EndTime
+                            });
+                        });
+                        reslove(result);
                     });
-                    let c = Object.assign({}, Config);
-                    let temp = new browser(s, c);
-                    temp.Start();
-                }
+                }));
             });
         }
         static CreatePressureTestConfig(Script, Config, TotalCount) {
@@ -298,6 +311,8 @@ var chrome;
                     finally { if (e_1) throw e_1.error; }
                 }
                 yield ((_b = this._Browser) === null || _b === void 0 ? void 0 : _b.close());
+                this._EndTime = new Date().toISOString();
+                return { StartTime: this.StartTime, ReactionTime: this.ReactionTime, EndTime: this.EndTime };
             });
         }
     }

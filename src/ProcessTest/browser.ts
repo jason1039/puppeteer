@@ -1,5 +1,4 @@
-import { config } from 'process';
-import puppeteer, { Touchscreen } from 'puppeteer';
+import puppeteer from 'puppeteer';
 import { Vpn } from './GetVpnAddress';
 
 export namespace chrome {
