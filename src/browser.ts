@@ -1,13 +1,24 @@
-import puppeteer from 'puppeteer';
+import { config } from 'process';
+import puppeteer, { Touchscreen } from 'puppeteer';
+import { Vpn } from './GetVpnAddress';
 
 export namespace chrome {
     export class browser {
         private _Browser?: puppeteer.Browser;
-        private Page: Array<puppeteer.Page | undefined> = [];
+        private Pages: Array<puppeteer.Page> = [];
         private Proxy?: ProxyInfo;
         private Script: Script;
         private Config: Config;
         private ValueParamters: ValueParamter[] = [];
+        private _ReactionTime: number = 0;
+        public readonly StartTime: string = new Date().toISOString();
+        private _EndTime: string = new Date().toISOString();
+        get ReactionTime(): number {
+            return this._ReactionTime;
+        }
+        get EndTime(): string {
+            return this._EndTime;
+        }
         constructor(Script: Script, Config: Config) {
             this.Script = Script;
             this.Config = Config;
@@ -23,50 +34,71 @@ export namespace chrome {
             let page: puppeteer.Page = await this._Browser?.newPage() || await (await puppeteer.launch()).newPage();
             await page.deleteCookie();
             if (this.Config.ProxyInfo) await page.authenticate(this.Config.ProxyInfo);
-            this.Page.push(page);
+            this.Pages.push(page);
             return page;
         }
-        private async Event(Operation: Operation, Page: puppeteer.Page): Promise<any> {
+        private async Event(Operation: Operation): Promise<any> {
             let StartWaitTime: number = Operation.StartWaitTime || 0;
             let EndWaitTime: number = Operation.EndWaitTime || 0;
-            await Page.waitForTimeout(StartWaitTime);
-            await Page.waitForSelector(Operation.ElementSelector);
+            await this.Pages[this.Pages.length - 1]?.waitForTimeout(StartWaitTime);
+            this._ReactionTime -= Date.now();
+            await this.Pages[this.Pages.length - 1]?.waitForSelector(Operation.ElementSelector);
+            this._ReactionTime += Date.now();
             switch (Operation.Event) {
                 case "Click":
-                    await Page.click(Operation.ElementSelector);
+                    await this.Pages[this.Pages.length - 1].click(Operation.ElementSelector);
                     break;
                 case "Focus":
-                    await Page.focus(Operation.ElementSelector);
+                    await this.Pages[this.Pages.length - 1].focus(Operation.ElementSelector);
                     break;
                 case "Input":
-                    await Page.focus(Operation.ElementSelector);
+                    await this.Pages[this.Pages.length - 1].focus(Operation.ElementSelector);
                     let value_Input: string | TypeError = Operation.Value ? Operation.Value.toString() || "" : Operation.ValueParamter ? this.ValueParamters.filter(i => i.ValueKey == Operation.ValueParamter?.ValueKey).length ? this.ValueParamters.filter(i => i.ValueKey == Operation.ValueParamter?.ValueKey)[0].Value?.toString() || "" : new TypeError("ValueParamter is null.") : new TypeError("Can't find Value or ValueParamter.");
                     if (value_Input instanceof TypeError) throw value_Input;
-                    await Page.keyboard.type(value_Input);
+                    await this.Pages[this.Pages.length - 1].keyboard.type(value_Input);
                     break;
                 case "Select":
-                    await Page.select(Operation.ElementSelector, Operation.Value?.toString() || "");
+                    await this.Pages[this.Pages.length - 1].select(Operation.ElementSelector, Operation.Value?.toString() || "");
                     break;
                 case "ScreenShot":
-                    await Page.waitForTimeout(EndWaitTime);
-                    return await this.ScreenShot(Operation.ScreenShotConfig || { width: this.Config.ViewWidth, height: this.Config.ViewHeight }, Page, (await Page.$(Operation.ElementSelector)));
+                    await this.Pages[this.Pages.length - 1].waitForTimeout(EndWaitTime);
+                    return await this.ScreenShot(Operation.ScreenShotConfig || { width: this.Config.ViewWidth, height: this.Config.ViewHeight }, this.Pages[this.Pages.length - 1], (await this.Pages[this.Pages.length - 1].$(Operation.ElementSelector)));
                 case "GetValue":
-                    let element = await Page.$(Operation.ElementSelector);
+                    let element = await this.Pages[this.Pages.length - 1].$(Operation.ElementSelector);
                     let value = await (await element?.getProperty("value"))?.jsonValue() as string;
                     this.AddValueParamter(Operation.ValueParamter?.ValueKey || "", value);
                     break;
                 case "ClearInput":
-                    let element_ClearInput = await Page.$(Operation.ElementSelector);
-                    let value_ClearInput = await Page.evaluate(el => el.textContent, element_ClearInput);
-                    await Page.focus(Operation.ElementSelector);
+                    let element_ClearInput = await this.Pages[this.Pages.length - 1].$(Operation.ElementSelector);
+                    let value_ClearInput = await this.Pages[this.Pages.length - 1].evaluate(el => el.textContent, element_ClearInput);
+                    await this.Pages[this.Pages.length - 1].focus(Operation.ElementSelector);
                     for (let i = 0; i < value_ClearInput.length; i++) {
-                        await Page.keyboard.press('Backspace');
+                        await this.Pages[this.Pages.length - 1].keyboard.press('Backspace');
                     }
+                    break;
+                case "NewPage":
+                    await this.CreatePage();
+                    break;
+                case "ClosePage":
+                    await this.Pages[this.Pages.length - 1].close();
+                    break;
+                case "Goto":
+                    if (!Operation.GotoUrl) throw new TypeError("Can't find GotoUrl.");
+                    this._ReactionTime -= Date.now();
+                    await this.Pages[this.Pages.length - 1].goto(Operation.GotoUrl);
+                    this._ReactionTime += Date.now();
+                    break;
+                case "UpdateValueParamter":
+                    if (!Operation.UpdateValueParamter) throw new TypeError("Hasn't UpdateValueParamter.");
+                    if (!Operation.ValueParamter) throw new TypeError("Hasn't ValueParamter.");
+                    if (!this.ValueParamters.filter(i => i.ValueKey == Operation.ValueParamter?.ValueKey).length) throw new TypeError("Can't find ValueParamter.");
+                    let Value_UpdateValueParamter: string = this.ValueParamters.filter(i => i.ValueKey == Operation.ValueParamter?.ValueKey)[0].Value?.toString() || "";
+                    this.SetParamter(Operation.ValueParamter.ValueKey, Operation.UpdateValueParamter(Value_UpdateValueParamter));
                     break;
                 default:
                     throw new TypeError(`Can't find event:${Operation.Event}`);
             }
-            await Page.waitForTimeout(EndWaitTime);
+            await this.Pages[this.Pages.length - 1]?.waitForTimeout(EndWaitTime);
             return;
         }
         private async ScreenShot(ScreenShot: ScreenShot, Page: puppeteer.Page, Element?: puppeteer.ElementHandle<Element> | null): Promise<Buffer | string> {
@@ -115,16 +147,93 @@ export namespace chrome {
             if (this.ValueParamters.some(i => i.ValueKey == ValueKey)) throw new Error("ValueKey repeat.");
             this.ValueParamters.push({ ValueKey: ValueKey, Value: Value });
         }
-        public async Start(): Promise<void> {
-            await this.launch();
-            let Page = await this.CreatePage();
-            await Page.goto(this.HrefToString(this.Script.StartHref));
-            for await (let item of this.Script.Operations) {
-                await this.Event(item, Page);
+        private GetParamter(ValueKey: string): string {
+            if (!this.ValueParamters.filter(i => i.ValueKey == ValueKey).length) throw new TypeError("Can't find this value.");
+            return this.ValueParamters.filter(i => i.ValueKey)[0].Value?.toString() || "";
+        }
+        private SetParamter(ValueKey: string, Value: string): void {
+            if (!this.ValueParamters.filter(i => i.ValueKey == ValueKey).length) throw new TypeError("Can't find this value.");
+            this.ValueParamters.filter(i => i.ValueKey)[0].Value = Value;
+        }
+        public static async PressureTest(Script: Script, Config: Config, TotalCount: number): Promise<Array<{ StartTime: string, ReactionTime: number, EndTime: string }>> {
+            return new Promise(async (reslove, reject) => {
+                let vpns: Vpn.VpnData[] = await this.GetVpnAddress();
+                let data: Promise<{ StartTime: string, ReactionTime: number, EndTime: string }>[] = [];
+                for (let i = 0; i < Math.floor(TotalCount); i++) {
+                    let vpn: Vpn.VpnData = vpns[i % vpns.length];
+                    Config.ProxyInfo = {
+                        VpnServer: vpn.IPAddress,
+                        username: "vpn",
+                        password: "vpn"
+                    }
+                    let s: Script = {
+                        StartHref: Script.StartHref,
+                        Operations: []
+                    }
+                    if (Script.ScreenShot) s.ScreenShot = Script.ScreenShot;
+                    Script.Operations.forEach(i => {
+                        s.Operations.push(i);
+                    });
+                    let c: Config = { ...Config };
+                    let temp = new browser(s, c);
+                    data.push(temp.Start());
+                }
+                Promise.all(data).then((d) => {
+                    let result: Array<{ StartTime: string, ReactionTime: number, EndTime: string }> = [];
+                    d.forEach(i => {
+                        result.push({
+                            StartTime: i.StartTime,
+                            ReactionTime: i.ReactionTime,
+                            EndTime: i.EndTime
+                        })
+                    });
+                    reslove(result);
+                });
+            });
+        }
+        public static async CreatePressureTestConfig(Script: Script, Config: Config, TotalCount: number): Promise<{ Script: Script, Config: Config }[]> {
+            let result: { Script: Script, Config: Config }[] = [];
+            let vpns: Vpn.VpnData[] = await this.GetVpnAddress();
+            for (let i = 0; i < Math.floor(TotalCount); i++) {
+                let vpn: Vpn.VpnData = vpns[vpns.length % i];
+                Config.ProxyInfo = {
+                    VpnServer: vpn.IPAddress,
+                    username: "vpn",
+                    password: "vpn"
+                }
+                result.push({
+                    Script: Script,
+                    Config: Config
+                })
             }
-            if (this.Script.ScreenShot) await this.ScreenShot(this.Script.ScreenShot, Page);
-            await Page.close();
+            return result;
+        }
+        public static async GetVpnAddress(): Promise<Vpn.VpnData[]> {
+            return await Vpn.GetVpnAddress.GetJson();
+        }
+        public async Start(): Promise<{ StartTime: string, ReactionTime: number, EndTime: string }> {
+            await this.launch();
+            this.Script.Operations.unshift({
+                ElementSelector: "body",
+                Event: "Goto",
+                GotoUrl: this.HrefToString(this.Script.StartHref)
+            });
+            this.Script.Operations.unshift({
+                ElementSelector: "body",
+                Event: "NewPage",
+            });
+            if (this.Script.ScreenShot)
+                this.Script.Operations.push({ ElementSelector: "body", Event: "ScreenShot", ScreenShotConfig: this.Script.ScreenShot })
+            this.Script.Operations.push({
+                ElementSelector: "body",
+                Event: "ClosePage",
+            });
+            for await (let item of this.Script.Operations) {
+                await this.Event(item);
+            }
             await this._Browser?.close();
+            this._EndTime = new Date().toISOString();
+            return { StartTime: this.StartTime, ReactionTime: this.ReactionTime, EndTime: this.EndTime };
         }
     }
     export interface ProxyInfo {
@@ -145,7 +254,7 @@ export namespace chrome {
     }
     export interface Operation {
         ElementSelector: string;
-        Event: "Input" | "Click" | "Focus" | "Select" | "ScreenShot" | "GetValue" | "ClearInput";
+        Event: "Input" | "Click" | "Focus" | "Select" | "ScreenShot" | "GetValue" | "ClearInput" | "NewPage" | "ClosePage" | "Goto" | "UpdateValueParamter";
         Value?: number | string | boolean;
         Frequency?: number;
         StartWaitTime?: number;
@@ -153,6 +262,8 @@ export namespace chrome {
         ScreenShotConfig?: ScreenShot | Base64ScreenShot | BinaryScreenShot;
         Verification?: Verification;
         ValueParamter?: ValueParamterOperation;
+        GotoUrl?: string;
+        UpdateValueParamter?: Function;
     }
     export interface ValueParamter {
         ValueKey: string;
