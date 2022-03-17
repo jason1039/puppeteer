@@ -29,6 +29,7 @@ var chrome;
             this.Pages = [];
             this.ValueParamters = [];
             this._ReactionTime = 0;
+            this._RequestScripts = [];
             this.StartTime = new Date().toISOString();
             this._EndTime = new Date().toISOString();
             this.Script = Script;
@@ -39,6 +40,9 @@ var chrome;
         }
         get EndTime() {
             return this._EndTime;
+        }
+        get RequestScripts() {
+            return this._RequestScripts;
         }
         launch() {
             var _a, _b;
@@ -59,6 +63,55 @@ var chrome;
                 yield page.deleteCookie();
                 if (this.Config.ProxyInfo)
                     yield page.authenticate(this.Config.ProxyInfo);
+                page.on("response", (event) => {
+                    // console.log(event);
+                });
+                page.on("request", (event) => __awaiter(this, void 0, void 0, function* () {
+                    let scr = {
+                        url: event.url(),
+                        method: event.method(),
+                        headers: event.headers()
+                    };
+                    if (event.postData())
+                        scr.body = event.postData();
+                    let cks = [];
+                    if (yield page.client().send('Network.getAllCookies')) {
+                        let temp = yield page.client().send('Network.getAllCookies');
+                        temp.cookies.forEach(i => {
+                            cks.push(`${i.name}=${i.value}`);
+                        });
+                    }
+                    if (cks.length)
+                        scr.Cookies = cks.join('; ');
+                    this._RequestScripts.push(scr);
+                    // if (!/.*.js$|.*.css$|.*.png$/.test(event.url())) {
+                    //     console.log(event.url());
+                    // }
+                    // console.log("------------------------------------------------");
+                    // console.log(event.url());
+                    // console.log(event.method());
+                    // let temp = event.postData()?.split('&');
+                    // if (temp) {
+                    //     temp.forEach(i => {
+                    //         console.log(i.split("=")[0]);
+                    //         console.log('-');
+                    //         console.log(i.split("=")[1]);
+                    //     });
+                    // }
+                    // console.log(event.postData()?.split('&'));
+                    // console.log(event.method());
+                    // console.log(event.postData());
+                    // console.log(event.headers());
+                    // console.log(event.headers().c);
+                    // console.log(event._response);
+                    // console.log(event.url());
+                    // console.log(event.headers().Cookies);
+                    // console.log(event.headers().cookie);
+                    // console.log(event.headers().NET_SessionId);
+                    // console.log(event.headers().https);
+                    // console.log(event.)
+                    // console.log("-------------------------------------------------------------");
+                }));
                 this.Pages.push(page);
                 return page;
             });
@@ -313,6 +366,11 @@ var chrome;
                 yield ((_b = this._Browser) === null || _b === void 0 ? void 0 : _b.close());
                 this._EndTime = new Date().toISOString();
                 return { StartTime: this.StartTime, ReactionTime: this.ReactionTime, EndTime: this.EndTime };
+            });
+        }
+        GetRequestScript() {
+            return __awaiter(this, void 0, void 0, function* () {
+                yield this.Start();
             });
         }
     }

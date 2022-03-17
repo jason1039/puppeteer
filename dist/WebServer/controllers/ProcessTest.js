@@ -13,7 +13,7 @@ const index_1 = require("../../ProcessTest/index");
 class ProcessTestController {
     echo(req, res) {
         return __awaiter(this, void 0, void 0, function* () {
-            let buffer = yield index_1.Example();
+            let buffer = yield (0, index_1.Example)();
             res.setHeader('Content-Type', 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet');
             res.setHeader('Content-Disposition', 'attachment; filename=Report.xlsx');
             res.send(buffer);

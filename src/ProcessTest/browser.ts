@@ -1,5 +1,6 @@
 import puppeteer from 'puppeteer';
 import { Vpn } from './GetVpnAddress';
+import { AxiosRequestConfig, Method } from 'axios';
 
 export namespace chrome {
     export class browser {
@@ -37,17 +38,23 @@ export namespace chrome {
             let page: puppeteer.Page = await this._Browser?.newPage() || await (await puppeteer.launch()).newPage();
             await page.deleteCookie();
             if (this.Config.ProxyInfo) await page.authenticate(this.Config.ProxyInfo);
-            page.on("response", (event: puppeteer.HTTPResponse) => {
-                // console.log(event);
-            });
 
             page.on("request", async (event: puppeteer.HTTPRequest) => {
+                let method: Method = "GET";
+                switch (event.method().toUpperCase()) {
+                    case "GET":
+                        method = "GET";
+                        break;
+                    case "POST":
+                        method = "POST";
+                        break;
+                }
                 let scr: RequestScript = {
                     url: event.url(),
-                    method: event.method(),
+                    method: method,
                     headers: event.headers()
                 }
-                if (event.postData()) scr.postData = event.postData();
+                if (event.postData()) scr.data = event.postData();
                 let cks: string[] = [];
                 if (await page.client().send('Network.getAllCookies')) {
                     let temp = await page.client().send('Network.getAllCookies');
@@ -57,33 +64,6 @@ export namespace chrome {
                 }
                 if (cks.length) scr.Cookies = cks.join('; ');
                 this._RequestScripts.push(scr);
-                if (!/.*.js$|.*.css$|.*.png$/.test(event.url())) {
-                    console.log(event.url());
-                }
-                // console.log("------------------------------------------------");
-                // console.log(event.url());
-                // console.log(event.method());
-                let temp = event.postData()?.split('&');
-                // if (temp) {
-                //     temp.forEach(i => {
-                //         console.log(i.split("=")[0]);
-                //         console.log('-');
-                //         console.log(i.split("=")[1]);
-                //     });
-                // }
-                // console.log(event.postData()?.split('&'));
-                // console.log(event.method());
-                // console.log(event.postData());
-                // console.log(event.headers());
-                // console.log(event.headers().c);
-                // console.log(event._response);
-                // console.log(event.url());
-                // console.log(event.headers().Cookies);
-                // console.log(event.headers().cookie);
-                // console.log(event.headers().NET_SessionId);
-                // console.log(event.headers().https);
-                // console.log(event.)
-                // console.log("-------------------------------------------------------------");
             });
             this.Pages.push(page);
             return page;
@@ -349,12 +329,9 @@ export namespace chrome {
         ViewHeight: number;
         ProxyInfo?: ProxyInfo;
     }
-    export interface RequestScript {
+    export interface RequestScript extends AxiosRequestConfig {
         url: string;
-        method: string;
         Cookies?: string;
-        headers: json;
-        postData?: string;
     }
     interface json {
         [key: string | number]: any;

@@ -6,7 +6,7 @@ Object.defineProperty(exports, "__esModule", { value: true });
 exports.app = void 0;
 const express_1 = __importDefault(require("express"));
 const router_1 = require("./router");
-const app = express_1.default();
+const app = (0, express_1.default)();
 exports.app = app;
 app.use(express_1.default.json());
 app.use(express_1.default.urlencoded({ extended: false }));

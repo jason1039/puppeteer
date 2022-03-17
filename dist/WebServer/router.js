@@ -9,4 +9,6 @@ const processTest_route_1 = __importDefault(require("./routes/processTest.route"
 // import CustomerRoute from './routes/customer.route';
 exports.router = [
     new processTest_route_1.default(),
+    // new AuthRoute(),
+    // new CustomerRoute(),
 ];

@@ -11,7 +11,6 @@ var __awaiter = (this && this.__awaiter) || function (thisArg, _arguments, P, ge
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.Example = void 0;
 const browser_1 = require("./browser");
-const CreateReport_1 = require("./CreateReport");
 function Example() {
     return __awaiter(this, void 0, void 0, function* () {
         let StartHref = {
@@ -27,6 +26,7 @@ function Example() {
             { ElementSelector: "#ContentPlaceHolder2_txtbirth", Event: "GetValue", ValueParamter: { ValueKey: "ContentPlaceHolder2_txtbirth", type: "get" } },
             { ElementSelector: "body", Event: "UpdateValueParamter", UpdateValueParamter: (Value) => `123_${Value}`, ValueParamter: { ValueKey: "ContentPlaceHolder2_txtbirth", type: "set" } },
             { ElementSelector: "#ContentPlaceHolder2_txtVer", Event: "Input", ValueParamter: { ValueKey: "ContentPlaceHolder2_txtbirth", type: "set" } },
+            // { ElementSelector: "#ContentPlaceHolder2_ImageButton1", Event: "ScreenShot", ScreenShotConfig: { width: 1903, height: 630, path: "./Example_ElementScreenShot.png", type: "png", encoding: "binary" } },
         ];
         let ScreenShot = {
             width: 1903,
@@ -38,6 +38,7 @@ function Example() {
         let exampleScript = {
             StartHref: StartHref,
             Operations: Operations,
+            // ScreenShot: ScreenShot
         };
         let Proxy = {
             VpnServer: "219.104.228.13",
@@ -50,14 +51,15 @@ function Example() {
             headless: true,
             ProxyInfo: Proxy,
         };
-        let data = yield browser_1.chrome.browser.PressureTest(exampleScript, exampleConfig, 5);
-        let report_temp = new CreateReport_1.Report.Excel(data);
-        return report_temp.GetExcelBuffer();
+        // let data = await chrome.browser.PressureTest(exampleScript, exampleConfig, 5);
+        // let report_temp = new Report.Excel(data);
+        // return report_temp.GetExcelBuffer();
         // let t = await report_temp.GetExcelBuffer();
         // fs.writeFileSync("./test.xlsx", t);
-        // let browser: chrome.browser = new chrome.browser(exampleScript, exampleConfig);
-        // await browser.Start();
+        let browser = new browser_1.chrome.browser(exampleScript, exampleConfig);
+        yield browser.Start();
+        return Buffer.from([]);
     });
 }
 exports.Example = Example;
-// Example();
+Example();

@@ -1,7 +1,11 @@
 "use strict";
 var __createBinding = (this && this.__createBinding) || (Object.create ? (function(o, m, k, k2) {
     if (k2 === undefined) k2 = k;
-    Object.defineProperty(o, k2, { enumerable: true, get: function() { return m[k]; } });
+    var desc = Object.getOwnPropertyDescriptor(m, k);
+    if (!desc || ("get" in desc ? !m.__esModule : desc.writable || desc.configurable)) {
+      desc = { enumerable: true, get: function() { return m[k]; } };
+    }
+    Object.defineProperty(o, k2, desc);
 }) : (function(o, m, k, k2) {
     if (k2 === undefined) k2 = k;
     o[k2] = m[k];
@@ -25,7 +29,7 @@ Object.defineProperty(exports, "__esModule", { value: true });
 exports.Server = void 0;
 const app_1 = require("../app");
 const debug_1 = __importDefault(require("debug"));
-const debug = debug_1.default('maabackend:server');
+const debug = (0, debug_1.default)('maabackend:server');
 const http = __importStar(require("http"));
 var Server;
 (function (Server) {
