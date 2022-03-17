@@ -1,43 +1,76 @@
 import { chrome } from "./browser";
 
 import axios, { AxiosRequestConfig, AxiosResponse } from 'axios';
-import { Touchscreen } from "puppeteer";
 
 export namespace ProcessTest {
+    interface TestInfoItem {
+        StartTime: number;
+        EndTime: number;
+        UseTime: number;
+        WaitTime: number;
+    }
     export class Req {
         private readonly infomations: AxiosRequestConfig[];
         private readonly TestCount: number;
         private RunningRequest: number = 0;
+        private StartTime: number = 0;
+        private EndTime: number = 0;
+        private _TestInfo: TestInfoItem[] = [];
+        private readonly WaitTime: number = 2;
+        get TotalTime() {
+            return this.EndTime - this.StartTime;
+        }
+        get TestInfo() {
+            return this._TestInfo;
+        }
         constructor(info: AxiosRequestConfig[], TestCount: number) {
             this.infomations = info;
             this.TestCount = TestCount;
         }
-        public async Start() {
-            return new Promise(reslove => {
+        public async Start(): Promise<void> {
+            return new Promise((reslove, reject) => {
+                this.StartTime = Date.now();
                 let promiseAry: any[] = [];
                 for (let i = 0; i < this.TestCount; i++) {
                     this.infomations.forEach(j => {
-                        promiseAry.push(this.Request(j));
+                        promiseAry.push(this.Request(j, i));
                     });
                 }
-                Promise.all(promiseAry).then(reslove);
+                Promise.all(promiseAry).then(() => {
+                    this.EndTime = Date.now();
+                    reslove();
+                }).catch(reject);
             });
         }
-        // Promise<AxiosResponse<any, any>>
-        private async Request(info: AxiosRequestConfig): Promise<AxiosResponse<any, any>> {
+        private async Request(info: AxiosRequestConfig, index: number): Promise<AxiosResponse<any, any>> {
             return new Promise(async (reslove, reject) => {
-                while (this.RunningRequest > 20) await this.Delay(10);
+                if (!this._TestInfo[index]) this._TestInfo[index] = {
+                    StartTime: 0,
+                    EndTime: Date.now(),
+                    UseTime: 0,
+                    WaitTime: 0
+                }
+                while (this.RunningRequest > 20) {
+                    await this.Delay();
+                    if (Date.now() > this._TestInfo[index].EndTime && this._TestInfo[index].StartTime != 0) this._TestInfo[index].WaitTime += this.WaitTime;
+                }
+
                 this.RunningRequest++;
                 info.timeout = 150000;
+                let s = Date.now();
                 let data = await axios(info);
+                let e = Date.now();
+                if (!this._TestInfo[index].StartTime) this._TestInfo[index].StartTime = s;
+                this._TestInfo[index].EndTime = e;
+                this._TestInfo[index].UseTime = this._TestInfo[index].EndTime - this._TestInfo[index].StartTime - this._TestInfo[index].WaitTime;
                 this.RunningRequest--;
                 if (data.status != 200) reject(data);
                 reslove(data);
             });
         }
-        private async Delay(ms: number): Promise<void> {
+        private async Delay(): Promise<void> {
             return new Promise(reslove => {
-                setTimeout(reslove, Math.floor(ms));
+                setTimeout(reslove, this.WaitTime);
             });
         }
 
@@ -88,6 +121,8 @@ async function test() {
     }
     let t = await new chrome.browser(exampleScript, exampleConfig);
     await t.Start();
-    let Test = new ProcessTest.Req(t.RequestScripts, 10);
-    Test.Start();
+    let Test = new ProcessTest.Req(t.RequestScripts, 100);
+    await Test.Start();
+    console.log(Test.TotalTime);
+    console.log(Test.TestInfo);
 }
