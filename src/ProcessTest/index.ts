@@ -41,12 +41,13 @@ export async function Example(): Promise<Buffer> {
         headless: true,
         ProxyInfo: Proxy,
     }
-    let data = await chrome.browser.PressureTest(exampleScript, exampleConfig, 5);
-    let report_temp = new Report.Excel(data);
-    return report_temp.GetExcelBuffer();
+    // let data = await chrome.browser.PressureTest(exampleScript, exampleConfig, 5);
+    // let report_temp = new Report.Excel(data);
+    // return report_temp.GetExcelBuffer();
     // let t = await report_temp.GetExcelBuffer();
     // fs.writeFileSync("./test.xlsx", t);
-    // let browser: chrome.browser = new chrome.browser(exampleScript, exampleConfig);
-    // await browser.Start();
+    let browser: chrome.browser = new chrome.browser(exampleScript, exampleConfig);
+    await browser.Start();
+    return Buffer.from([]);
 }
-// Example();
+Example();

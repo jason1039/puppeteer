@@ -10,6 +10,7 @@ export namespace chrome {
         private Config: Config;
         private ValueParamters: ValueParamter[] = [];
         private _ReactionTime: number = 0;
+        private _RequestScripts: RequestScript[] = [];
         public readonly StartTime: string = new Date().toISOString();
         private _EndTime: string = new Date().toISOString();
         get ReactionTime(): number {
@@ -17,6 +18,9 @@ export namespace chrome {
         }
         get EndTime(): string {
             return this._EndTime;
+        }
+        get RequestScripts(): RequestScript[] {
+            return this._RequestScripts;
         }
         constructor(Script: Script, Config: Config) {
             this.Script = Script;
@@ -33,6 +37,54 @@ export namespace chrome {
             let page: puppeteer.Page = await this._Browser?.newPage() || await (await puppeteer.launch()).newPage();
             await page.deleteCookie();
             if (this.Config.ProxyInfo) await page.authenticate(this.Config.ProxyInfo);
+            page.on("response", (event: puppeteer.HTTPResponse) => {
+                // console.log(event);
+            });
+
+            page.on("request", async (event: puppeteer.HTTPRequest) => {
+                let scr: RequestScript = {
+                    url: event.url(),
+                    method: event.method(),
+                    headers: event.headers()
+                }
+                if (event.postData()) scr.postData = event.postData();
+                let cks: string[] = [];
+                if (await page.client().send('Network.getAllCookies')) {
+                    let temp = await page.client().send('Network.getAllCookies');
+                    temp.cookies.forEach(i => {
+                        cks.push(`${i.name}=${i.value}`);
+                    });
+                }
+                if (cks.length) scr.Cookies = cks.join('; ');
+                this._RequestScripts.push(scr);
+                if (!/.*.js$|.*.css$|.*.png$/.test(event.url())) {
+                    console.log(event.url());
+                }
+                // console.log("------------------------------------------------");
+                // console.log(event.url());
+                // console.log(event.method());
+                let temp = event.postData()?.split('&');
+                // if (temp) {
+                //     temp.forEach(i => {
+                //         console.log(i.split("=")[0]);
+                //         console.log('-');
+                //         console.log(i.split("=")[1]);
+                //     });
+                // }
+                // console.log(event.postData()?.split('&'));
+                // console.log(event.method());
+                // console.log(event.postData());
+                // console.log(event.headers());
+                // console.log(event.headers().c);
+                // console.log(event._response);
+                // console.log(event.url());
+                // console.log(event.headers().Cookies);
+                // console.log(event.headers().cookie);
+                // console.log(event.headers().NET_SessionId);
+                // console.log(event.headers().https);
+                // console.log(event.)
+                // console.log("-------------------------------------------------------------");
+            });
             this.Pages.push(page);
             return page;
         }
@@ -234,6 +286,9 @@ export namespace chrome {
             this._EndTime = new Date().toISOString();
             return { StartTime: this.StartTime, ReactionTime: this.ReactionTime, EndTime: this.EndTime };
         }
+        public async GetRequestScript() {
+            await this.Start();
+        }
     }
     export interface ProxyInfo {
         username: string;
@@ -293,5 +348,15 @@ export namespace chrome {
         ViewWidth: number;
         ViewHeight: number;
         ProxyInfo?: ProxyInfo;
+    }
+    export interface RequestScript {
+        url: string;
+        method: string;
+        Cookies?: string;
+        headers: json;
+        postData?: string;
+    }
+    interface json {
+        [key: string | number]: any;
     }
 }
